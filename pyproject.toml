@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-split-prompt-randomizer-and-loader"
+version = "1.0.0"
+description = "Split character name and general prompt fields, randomly resolve {A|B|C} syntax with seed control, and auto-load matching reference images from input folder."
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/example/comfyui-split-prompt-randomizer-and-loader"
+
+[tool.comfy]
+PublisherId = "local"
+DisplayName = "Split Prompt Randomizer & Loader"
+Icon = ""
