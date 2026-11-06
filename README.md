@@ -19,6 +19,11 @@ ComfyUI カスタムノード。
     - すべて小文字化
     - 半角スペース / アンダーバー `_` / ハイフン `-` を除去
   - 例: `yakumo yukari` ↔ `yakumo_yukari.png` / `YakumoYukari.jpg`
+- **コスチューム指定（costume_id）**
+  - `costume_id = 0` → 基本画像（`yakumo_yukari.png`）
+  - `costume_id = 1` → `yakumo_yukari_COS1.png` などを探す
+  - 指定番号の COS が存在しない場合は **基本画像にフォールバック**
+  - プロンプト文字列には COS 接尾辞は一切入らない
 - **リファレンス画像出力**
   - マッチした画像を `IMAGE` として出力
   - 見つからない場合や空欄の場合は **512×512 の黒画像** を出力
@@ -79,6 +84,7 @@ split_prompt_randomizer_and_loader/
 | character_text | STRING (multiline) | "" | キャラクター名選出専用 |
 | general_text | STRING (multiline) | "" | 一般プロンプト選出専用 |
 | character_dir | STRING | "characters" | このパッケージ内の相対パス |
+| costume_id | INT | 0 | コスチューム番号（0=基本、1以上=COS番号。なければ基本にフォールバック） |
 | seed | INT | 0 | 乱数シード |
 
 ### 出力

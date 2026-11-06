@@ -131,10 +131,21 @@ def _black_image(width: int = 512, height: int = 512) -> torch.Tensor:
     return torch.zeros((1, height, width, 3), dtype=torch.float32)
 
 
-def _find_matching_image(character_name: str, directory: str) -> str | None:
+def _find_matching_image(
+    character_name: str,
+    directory: str,
+    costume_id: int = 0,
+) -> str | None:
     """
     character_name とファイル名（拡張子除く）を正規化比較してマッチするパスを返す。
-    見つからなければ None。
+
+    コスチューム指定:
+      - costume_id == 0 → 基本画像（完全一致）を返す
+      - costume_id >= 1 → キャラ名 + COS{番号} を探す
+        例: yakumo_yukari_COS1.png / yakumo_yukari_cos2.png
+      - 指定番号の COS が見つからない場合は基本画像にフォールバック
+      - 基本画像もなければ None
+    プロンプト側の文字列には影響しない。
     """
     if not character_name or not os.path.isdir(directory):
         return None
@@ -145,13 +156,31 @@ def _find_matching_image(character_name: str, directory: str) -> str | None:
 
     supported_ext = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tiff", ".tif"}
 
+    base_path: str | None = None
+    cos_path: str | None = None
+    cos_suffix = f"cos{costume_id}"  # 正規化後は "cos1", "cos2"...
+
     for fname in os.listdir(directory):
         base, ext = os.path.splitext(fname)
         if ext.lower() not in supported_ext:
             continue
-        if _normalize_name(base) == target:
-            return os.path.join(directory, fname)
-    return None
+        norm = _normalize_name(base)
+
+        # 基本画像（完全一致）
+        if norm == target:
+            base_path = os.path.join(directory, fname)
+            continue
+
+        # COS指定ありの場合: target + "cos" + 番号 で終わる／一致するもの
+        if costume_id >= 1:
+            # yakumoyukaricos1 / yakumoyukari_cos1 → 正規化後 yakumoyukaricos1
+            if norm == target + cos_suffix or norm.startswith(target) and norm.endswith(cos_suffix):
+                cos_path = os.path.join(directory, fname)
+
+    # 優先順位: 指定COS → 基本画像
+    if costume_id >= 1 and cos_path is not None:
+        return cos_path
+    return base_path
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +223,13 @@ class SplitPromptRandomizerAndLoader(io.ComfyNode):
                     tooltip="このノードパッケージ内の相対パス。リファレンス画像フォルダ（デフォルト: characters/）",
                 ),
                 io.Int.Input(
+                    "costume_id",
+                    default=0,
+                    min=0,
+                    max=99,
+                    tooltip="コスチューム番号。0=基本画像、1以上=COS1/COS2... 該当がなければ基本画像にフォールバック",
+                ),
+                io.Int.Input(
                     "seed",
                     default=0,
                     min=0,
@@ -214,6 +250,7 @@ class SplitPromptRandomizerAndLoader(io.ComfyNode):
         character_text: str,
         general_text: str,
         character_dir: str,
+        costume_id: int,
         seed: int,
     ):
         rng = random.Random(seed)
@@ -227,13 +264,13 @@ class SplitPromptRandomizerAndLoader(io.ComfyNode):
         character_output = _resolve_random(char_clean, rng).strip()
         general_output = _resolve_random(gen_clean, rng).strip()
 
-        # 3. 画像マッチング
-        # 個人使用向け: このカスタムノードパッケージ内の characters/ を優先して見る
-        # character_dir はパッケージルートからの相対パスとして扱う
+        # 3. 画像マッチング（costume_id で COS 指定、なければ基本画像）
         package_root = os.path.dirname(os.path.abspath(__file__))
         full_dir = os.path.join(package_root, character_dir.strip().lstrip("/\\"))
 
-        matched_path = _find_matching_image(character_output, full_dir)
+        matched_path = _find_matching_image(
+            character_output, full_dir, costume_id=costume_id
+        )
 
         if matched_path and os.path.isfile(matched_path):
             try:
