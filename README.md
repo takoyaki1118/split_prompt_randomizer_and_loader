@@ -19,11 +19,21 @@ ComfyUI カスタムノード。
     - すべて小文字化
     - 半角スペース / アンダーバー `_` / ハイフン `-` を除去
   - 例: `yakumo yukari` ↔ `yakumo_yukari.png` / `YakumoYukari.jpg`
+- **グループ指定（group_id）**
+  - コメント行を除いた各行を1グループとして扱う
+  - `group_id = 0` → 全グループからランダムに1行選ぶ
+  - `group_id = 1` → 1行目、`2` → 2行目…を固定選択
+  - 選んだ行の中の `{A|B|C}` だけをランダム解決（1人だけ出る）
 - **コスチューム指定（costume_id）**
   - `costume_id = 0` → 基本画像（`yakumo_yukari.png`）
   - `costume_id = 1` → `yakumo_yukari_COS1.png` などを探す
   - 指定番号の COS が存在しない場合は **基本画像にフォールバック**
   - プロンプト文字列には COS 接尾辞は一切入らない
+- **JSONプロンプト参照（オリキャラ対応）**
+  - `characters/prompts.json`（または `prompt_json` で指定）から名前でプロンプトを取得
+  - JSONに名前がある → そのプロンプトを `character_output` に使用
+  - JSONに名前がない → 従来どおり名前そのものを出力
+  - コスチューム別プロンプトにも対応（後述）
 - **リファレンス画像出力**
   - マッチした画像を `IMAGE` として出力
   - 見つからない場合や空欄の場合は **512×512 の黒画像** を出力
@@ -84,6 +94,8 @@ split_prompt_randomizer_and_loader/
 | character_text | STRING (multiline) | "" | キャラクター名選出専用 |
 | general_text | STRING (multiline) | "" | 一般プロンプト選出専用 |
 | character_dir | STRING | "characters" | このパッケージ内の相対パス |
+| prompt_json | STRING | "prompts.json" | プロンプト定義JSON（相対パス） |
+| group_id | INT | 0 | グループ行指定（0=ランダム、1=1行目、2=2行目…） |
 | costume_id | INT | 0 | コスチューム番号（0=基本、1以上=COS番号。なければ基本にフォールバック） |
 | seed | INT | 0 | 乱数シード |
 
@@ -94,6 +106,37 @@ split_prompt_randomizer_and_loader/
 | character_output | STRING | 解決済みキャラクター名 |
 | general_output | STRING | 解決済み一般プロンプト |
 | character_image | IMAGE | マッチしたリファレンス画像（なければ黒画像） |
+
+
+## JSONプロンプト（オリキャラ・既存キャラ共通）
+
+`characters/prompts.json` に定義を書きます。
+
+### シンプル（文字列）
+
+```json
+{
+  "sister claire": "sister claire, nun, blonde hair, blue eyes, habit",
+  "higuchi kaede": "higuchi kaede, antlers, long blonde hair, yellow eyes"
+}
+```
+
+### コスチューム別
+
+```json
+{
+  "my_oc": {
+    "0": "1girl, silver hair, red eyes, casual clothes",
+    "1": "1girl, silver hair, red eyes, school uniform",
+    "2": "1girl, silver hair, red eyes, maid outfit"
+  }
+}
+```
+
+- キー名はゆらぎ吸収マッチ（スペース/`_`/`-`/大文字小文字を無視）
+- `costume_id` に対応するキーが無ければ `"0"` / `"base"` にフォールバック
+- JSONに無いキャラは **名前そのもの** が出力される（従来どおり）
+- 画像マッチングは常に「名前」側で行う（JSON展開前）
 
 ## ライセンス
 
